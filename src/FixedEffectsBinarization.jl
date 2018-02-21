@@ -2,7 +2,103 @@ module FixedEffectsBinarization
 
 using StatsFuns.logistic
 using DataFrames: by, join, ModelMatrix, ModelFrame, model_response
-export NewtonRaphson, score_FEBClogit_2!, Hessian_FEBClogit_2!, ConvertPanelToDiffCS_2, FixedEffectsBinaryChoiceLogit_2
+export NewtonRaphson, score_FEBClogit_2!, Hessian_FEBClogit_2!, ConvertPanelToDiffCS_2, FixedEffectsBinaryChoiceLogit_2, score_FEOL_2!, Hessian_FEOL_2!, FixedEffectsOrderedLogit_2
+
+function FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol)
+    
+    # Convert the DataFrame + formula + (i,t)-indicators into vectors and matrices.
+    y,X = ConvertPanelToDiffCS_2(formula,data,:i,:t)
+    n, K = size(X)
+    
+    # Count how many additional columns there will be.
+    cuts1 = sort(unique(y[:,1]))[2:end] #2:end: skip the first one
+    cuts2 = sort(unique(y[:,2]))[2:end]
+    n_1 = length(cuts1)-1 # normalization: first cut point in first period at 0.
+    n_2 = length(cuts2)
+    
+    # Go for it!
+    b_hat = NewtonRaphson(score_FEOL_2!,Hessian_FEOL_2!,zeros(K+n_1+n_2),y,X)
+    
+    return b_hat
+end
+
+function score_FEOL_2!(J::AbstractArray,b::AbstractArray,y,X)
+    
+    # Extract the length
+    n, K = size(X)
+    
+    # Initialize the Jacobian to zero.
+    J .= 0
+    
+    # Compute what the cut points are, from observing the dependent variable.
+    cuts1 = sort(unique(y[:,1]))[2:end] #2:end: skip the first one
+    cuts2 = sort(unique(y[:,2]))[2:end]
+    n_1 = length(cuts1)-1 # normalization: first cut point in first period at 0.
+    n_2 = length(cuts2)
+    
+    # Set up the matrix of dummies.
+    Z = zeros(n,n_1+n_2)
+    
+    
+    for i in 1:length(cuts1)
+        for j in 1:length(cuts2)
+                
+            d1 = y[:,1].>=cuts1[i]
+            d2 = y[:,2].>=cuts2[j]
+            dbar = (d1 + d2) .== 1
+            
+            if i > 1
+                Z[:,i-1] = 1
+            end
+            Z[:,n_1+j] = -1
+            
+            J = J + score_FEBClogit_2!(J,b,[d1 d2 dbar],[X Z])
+            
+            Z = zeros(n,n_1+n_2)
+                
+        end
+    end
+    
+    return J
+    
+end
+
+function Hessian_FEOL_2!(H::AbstractArray,b::AbstractArray,y,X)
+    n,K = size(X) # Make sure a constant is added to X when this is called.
+    #length(b) == K ? nothing : error("Length of b does not match that of X plus a constant.")
+    H .= 0
+    
+    cuts1 = sort(unique(y[:,1]))[2:end]
+    cuts2 = sort(unique(y[:,2]))[2:end]
+    n_1 = length(cuts1)-1
+    n_2 = length(cuts2)
+    
+    # Set up the matrix of dummies.
+    Z = zeros(n,n_1+n_2)
+    
+    
+    for i in 1:length(cuts1)
+        for j in 1:length(cuts2)
+                
+            d1 = y[:,1].>=cuts1[i]
+            d2 = y[:,2].>=cuts2[j]
+            dbar = (d1 + d2) .== 1
+            
+            if i > 1
+                Z[:,i-1] = 1
+            end
+            Z[:,n_1+j] = -1
+            
+            H = H + Hessian_FEBClogit_2!(H,b,[d1 d2 dbar],[X Z])
+            
+            Z = zeros(n,n_1+n_2)
+                
+        end
+    end
+    
+    return H
+end
+
 
 """
     FixedEffectsBinaryChoiceLogit_2(formula,data,isymbol,tsymbol; constant = false)
@@ -152,7 +248,7 @@ function NewtonRaphson(objective!, gradient!, b0, y, X; maxiter = 1000, abstol =
     # gradient! is the gradient of that function, with first argument a replaceable
     #      KxK matrix, and second the parameter value.
     
-    K = size(X)[2]
+    K = length(b0)
     
     f0 = objective!(zeros(K),b0,y,X)
     J0 = gradient!(zeros(K,K),b0,y,X)
