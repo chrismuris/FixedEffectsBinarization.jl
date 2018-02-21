@@ -2,7 +2,40 @@ module FixedEffectsBinarization
 
 using StatsFuns.logistic
 using DataFrames: by, join, ModelMatrix, ModelFrame, model_response
-export NewtonRaphson, score_FEBClogit_2!, Hessian_FEBClogit_2!, ConvertPanelToDiffCS_2
+export NewtonRaphson, score_FEBClogit_2!, Hessian_FEBClogit_2!, ConvertPanelToDiffCS_2, FixedEffectsBinaryChoiceLogit_2
+
+"""
+    FixedEffectsBinaryChoiceLogit_2(formula,data,isymbol,tsymbol; constant = false)
+
+Implements Andersen's/Chamberlain's fixed effects estimator for a binary choice model with logistic errors.
+This implementation is restricted to 2 time periods.
+
+It takes a formula object, e.g. @formula(y~X1+X2), a data set, and symbols
+that indicate which columns in the data set are the cross-section and time
+indicators.
+
+It prepares the data and then passes it to NewtonRaphson, calling the score
+and Hessian functions specific to binary choice.
+"""
+function FixedEffectsBinaryChoiceLogit_2(formula,data,isymbol,tsymbol; constant = false)
+    
+    # Convert the DataFrame + formula + (i,t)-indicators into vectors and matrices.
+    y,X = ConvertPanelToDiffCS_2(formula,data,:i,:t)
+    
+    # Add a constant term if required.
+    n, K = size(X)
+    if constant
+        X = [ones(n) X]
+    end
+    
+    # Prep Y-matrix for optimization routine.
+    Y = [y[:,1] y[:,2] (y[:,1]+y[:,2].==1)]
+    
+    b_hat = NewtonRaphson(score_FEBClogit_2!,Hessian_FEBClogit_2!,zeros(K),Y,X)
+    
+    return b_hat
+end
+
 
 """
     ConvertPanelToDiffCS_2(formula,data,idsymbol,tsymbol)
@@ -120,7 +153,6 @@ function NewtonRaphson(objective!, gradient!, b0, y, X; maxiter = 1000, abstol =
     #      KxK matrix, and second the parameter value.
     
     K = size(X)[2]
-    Xb = X*b0
     
     f0 = objective!(zeros(K),b0,y,X)
     J0 = gradient!(zeros(K,K),b0,y,X)
