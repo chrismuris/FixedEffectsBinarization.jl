@@ -1,10 +1,44 @@
 module FixedEffectsBinarization
 
-export NewtonRaphson
+using StatsFuns.logistic
 
-# package code goes here
+export NewtonRaphson, score_FEBClogit_2!, Hessian_FEBClogit_2!
+
 """
+    score_FEBClogit_2!(J,b,y,X)
 
+Computes the score for a two-period fixed effects binary choice model.
+
+Its inputs are `J`, a Kx1 Vector that will be assigned the score,
+`b` a value of the regression parameter,
+`y` an `n` by `3` matrix consisting of `y1`, `y2`, and `y1+y2 == 1`.
+`X` an `n` by `K` matrix with differenced regressors.
+"""
+function score_FEBClogit_2!(J::AbstractArray,b::AbstractArray,y,X)
+    K = size(X)[2] # Make sure a constant is added to X when this is called.
+    length(b) == K ? nothing : error("Length of b does not match that of X plus a constant.")
+    Ztheta = X*b
+    J = [mean( (y[:,3]).*(( y[:,2] .- logistic.(Ztheta)) .* X)[:,i]) for i in 1:K]
+end
+
+"""
+    Hessian_FEBClogit_2!(H,b,y,X)
+
+Computes the score for a two-period fixed effects binary choice model.
+
+Its inputs are `H`, a KxK matrix that will be assigned the Hessian,
+`b` a value of the regression parameter,
+`y` an `n` by `3` matrix consisting of `y1`, `y2`, and `y1+y2 == 1`.
+`X` an `n` by `K` matrix with differenced regressors.
+"""
+function Hessian_FEBClogit_2!(H::AbstractArray,b::AbstractArray,y,X)
+    n,K = size(X) # Make sure a constant is added to X when this is called.
+    length(b) == K ? nothing : error("Length of b does not match that of X plus a constant.")
+    Ztheta = X*b
+    H = -1/n*((y[:,3]).*(logistic.(Ztheta)).*(1.-logistic.(Ztheta)) .* X)'*X
+end
+
+"""
     NewtonRaphson(objective!, gradient!, b0, y, X)
 
 Compute the maximum likelihood estimate given a score `objective!` and Hessian function `gradient!`.
