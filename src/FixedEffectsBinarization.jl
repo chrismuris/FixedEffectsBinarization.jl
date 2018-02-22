@@ -33,65 +33,98 @@ function score_FEOL_2!(J::AbstractArray,b::AbstractArray,y,X)
     # Compute what the cut points are, from observing the dependent variable.
     cuts1 = sort(unique(y[:,1]))[2:end] #2:end: skip the first one
     cuts2 = sort(unique(y[:,2]))[2:end]
-    n_1 = length(cuts1)-1 # normalization: first cut point in first period at 0.
+    n_1 = length(cuts1) 
     n_2 = length(cuts2)
     
-    # Set up the matrix of dummies.
-    Z = zeros(n,n_1+n_2)
-    
+    # Set the linear index.
+    Xb = X*b[1:K] 
     
     for i in 1:length(cuts1)
+        
+        d1 = y[:,1].>=cuts1[i]
+        
         for j in 1:length(cuts2)
-                
-            d1 = y[:,1].>=cuts1[i]
+            
+            Jnew = zeros(K+n_1+n_2) 
+                              
             d2 = y[:,2].>=cuts2[j]
             dbar = (d1 + d2) .== 1
             
-            if i > 1
-                Z[:,i-1] = 1
+            if i == 1
+                scalar_in = ((d1 + d2) .== 1).*(d2 .- logistic.(Xb - b[K+n_1+j]))
+            else 
+                scalar_in = ((d1 + d2) .== 1).*(d2 .- logistic.(Xb + b[K+i] - b[K+n_1+j]))
             end
-            Z[:,n_1+j] = -1
             
-            J = J + score_FEBClogit_2!(J,b,[d1 d2 dbar],[X Z])
+            Jnew[1:K] = [ mean( scalar_in .* X[:,i]) for i in 1:K]
             
-            Z = zeros(n,n_1+n_2)
-                
+            cut_H = mean(scalar_in)
+            if i>1
+                Jnew[K+i] = cut_H
+            end
+            Jnew[K+n_1+j] = -cut_H
+
+            # Assemble it.
+            J = J + Jnew
         end
     end
-    
     return J
-    
 end
 
 function Hessian_FEOL_2!(H::AbstractArray,b::AbstractArray,y,X)
-    n,K = size(X) # Make sure a constant is added to X when this is called.
-    #length(b) == K ? nothing : error("Length of b does not match that of X plus a constant.")
+    # Extract the length
+    n, K = size(X)
+    
+    # Initialize the Jacobian to zero.
     H .= 0
     
-    cuts1 = sort(unique(y[:,1]))[2:end]
+    # Compute what the cut points are, from observing the dependent variable.
+    cuts1 = sort(unique(y[:,1]))[2:end] #2:end: skip the first one
     cuts2 = sort(unique(y[:,2]))[2:end]
-    n_1 = length(cuts1)-1
+    n_1 = length(cuts1) # normalization: first cut point in first period at 0.
     n_2 = length(cuts2)
     
-    # Set up the matrix of dummies.
-    Z = zeros(n,n_1+n_2)
-    
+    # Predefine the linear index.
+    Xb = X*b[1:K] 
     
     for i in 1:length(cuts1)
+        
+        d1 = y[:,1].>=cuts1[i]
+        
         for j in 1:length(cuts2)
-                
-            d1 = y[:,1].>=cuts1[i]
+            
+            # Initialize the Hessian for this case
+            Hnew = zeros(K+n_1+n_2,K+n_1+n_2) 
+                              
             d2 = y[:,2].>=cuts2[j]
             dbar = (d1 + d2) .== 1
             
-            if i > 1
-                Z[:,i-1] = 1
+            # Compute the top-left block.
+            if i == 1
+                Lambda = ((d1 + d2) .== 1).*(logistic.(Xb - b[K+n_1+j]))
+            else 
+                Lambda = ((d1 + d2) .== 1).*(logistic.(Xb + b[K+i] - b[K+n_1+j]))
             end
-            Z[:,n_1+j] = -1
+            Hnew[1:K,1:K] = -(Lambda.*(1-Lambda) .* X)'*X / n
             
-            H = H + Hessian_FEBClogit_2!(H,b,[d1 d2 dbar],[X Z])
+            # Compute the bottom-right block.
+            cut_H = -mean(Lambda.*(1-Lambda))
+            if i>1
+                Hnew[K+i,K+i] = cut_H
+            end
+            Hnew[K+n_1+j,K+n_1+j] = cut_H
+           
+            # Compute the off-diagonal blocks.        
+            H_off = [ mean( -(Lambda.*(1-Lambda) .* X[:,i])) for i in 1:K ]
             
-            Z = zeros(n,n_1+n_2)
+            if i>1
+                Hnew[1:K,K+i] = H_off
+                Hnew[K+i,1:K] = H_off'
+            end
+            Hnew[1:K,K+n_1+j] = -H_off
+            Hnew[K+n_1+j,1:K] = -H_off'
+            
+            H = H + Hnew
                 
         end
     end
