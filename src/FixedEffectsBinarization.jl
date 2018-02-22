@@ -7,7 +7,7 @@ export NewtonRaphson, score_FEBClogit_2!, Hessian_FEBClogit_2!, ConvertPanelToDi
 function FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol; relax = 0.3, linesearch = false)
     
     # Convert the DataFrame + formula + (i,t)-indicators into vectors and matrices.
-    y,X = ConvertPanelToDiffCS_2(formula,data,:i,:t)
+    y,X = ConvertPanelToDiffCS_2(formula,data,isymbol,tsymbol)
     n,K = size(X)
     
     # Count how many additional columns there will be.
@@ -253,7 +253,7 @@ end
 """
 NewtonRaphson with line-search.
 """
-function NRLS(objective!, gradient!, b0, y, X; maxiter = 1000, abstol = 1e-8)
+function NRLS(objective!, gradient!, b0, y, X; maxiter = 1000, abstol = 1e-6)
     
     # objective! is a function to set to zero (score-type) with first aargument being
     #      a replaceable array of length K, and the second being a value for the
@@ -284,7 +284,7 @@ function NRLS(objective!, gradient!, b0, y, X; maxiter = 1000, abstol = 1e-8)
         fn = objective!(fn,xn,y,X)
         Jn = gradient!(Jn,xn,y,X)
     
-        discrep = ((xnp1-xn)'*(xnp1-xn)) / length(xnp1) 
+        discrep = ((xnp1-xn)'*(xnp1-xn)) / length(xnp1)
         if discrep < abstol && abs(findmax(fn)[1])<abstol
             break
         end
@@ -327,7 +327,7 @@ are, in order, the maximum number of iterations,
 a stopping criterion for both the estimate and the score,
 and a parameter that controls how relaxed the NR algorithm is. 
 """
-function NewtonRaphson(objective!, gradient!, b0, y, X; maxiter = 1000, abstol = 1e-10, relax = 0.3)
+function NewtonRaphson(objective!, gradient!, b0, y, X; maxiter = 1000, abstol = 1e-6, relax = 0.3)
     
     # objective! is a function to set to zero (score-type) with first aargument being
     #      a replaceable array of length K, and the second being a value for the
