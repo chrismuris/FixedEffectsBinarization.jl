@@ -4,7 +4,7 @@ using StatsFuns.logistic
 using DataFrames: by, join, ModelMatrix, ModelFrame, model_response
 export NewtonRaphson, score_FEBClogit_2!, Hessian_FEBClogit_2!, ConvertPanelToDiffCS_2, FixedEffectsBinaryChoiceLogit_2, score_FEOL_2!, Hessian_FEOL_2!, FixedEffectsOrderedLogit_2
 
-function FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol)
+function FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol; relax = 0.3, linesearch = false)
     
     # Convert the DataFrame + formula + (i,t)-indicators into vectors and matrices.
     y,X = ConvertPanelToDiffCS_2(formula,data,:i,:t)
@@ -17,8 +17,13 @@ function FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol)
     n_2 = length(cuts2)
     
     # Go for it!
-    b_hat = NewtonRaphson(score_FEOL_2!,Hessian_FEOL_2!,zeros(K+n_1+n_2),y,X)
     
+    if linesearch
+        b_hat = NRLS(score_FEOL_2!,Hessian_FEOL_2!,zeros(K+n_1+n_2),y,X)           
+    else
+        b_hat = NewtonRaphson(score_FEOL_2!,Hessian_FEOL_2!,zeros(K+n_1+n_2),y,X; relax = relax)
+    end
+
     return b_hat
 end
 
@@ -243,6 +248,55 @@ function Hessian_FEBClogit_2!(H::AbstractArray,b::AbstractArray,y,X)
     length(b) == K ? nothing : error("Length of b does not match that of X plus a constant.")
     Ztheta = X*b
     H = -1/n*((y[:,3]).*(logistic.(Ztheta)).*(1.-logistic.(Ztheta)) .* X)'*X
+end
+
+"""
+NewtonRaphson with line-search.
+"""
+function NRLS(objective!, gradient!, b0, y, X; maxiter = 1000, abstol = 1e-8)
+    
+    # objective! is a function to set to zero (score-type) with first aargument being
+    #      a replaceable array of length K, and the second being a value for the
+    #      parameter we are trying to estimate.
+    # gradient! is the gradient of that function, with first argument a replaceable
+    #      KxK matrix, and second the parameter value.
+    
+    K = length(b0)
+    
+    f0 = objective!(zeros(K),b0,y,X)
+    J0 = gradient!(zeros(K,K),b0,y,X)
+    xn = b0
+    fn = f0
+    Jn = J0
+    
+    for i in 1:maxiter
+
+        function g(a)
+            xnp1 = xn - a*pinv(Jn)*fn
+            return objective!(zeros(K),xnp1,y,X)
+        end
+        avals = [0.1*i for i in 1:9]
+        newvals = [(g(a)'*g(a)) for a in avals]
+        alpha = avals[findmin(newvals)[2]]
+        #println(alpha)
+        
+        xnp1 = xn - alpha*pinv(Jn)*fn
+        fn = objective!(fn,xn,y,X)
+        Jn = gradient!(Jn,xn,y,X)
+    
+        discrep = ((xnp1-xn)'*(xnp1-xn)) / length(xnp1) 
+        if discrep < abstol && abs(findmax(fn)[1])<abstol
+            break
+        end
+    
+        xn = xnp1
+        
+        if i == maxiter
+            println("Did not converge after $maxiter iterations.")
+        end
+    end
+    
+    return xn
 end
 
 """
