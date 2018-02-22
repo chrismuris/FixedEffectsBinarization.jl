@@ -8,12 +8,12 @@ function FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol)
     
     # Convert the DataFrame + formula + (i,t)-indicators into vectors and matrices.
     y,X = ConvertPanelToDiffCS_2(formula,data,:i,:t)
-    n, K = size(X)
+    n,K = size(X)
     
     # Count how many additional columns there will be.
     cuts1 = sort(unique(y[:,1]))[2:end] #2:end: skip the first one
     cuts2 = sort(unique(y[:,2]))[2:end]
-    n_1 = length(cuts1)-1 # normalization: first cut point in first period at 0.
+    n_1 = length(cuts1) - 1
     n_2 = length(cuts2)
     
     # Go for it!
@@ -33,7 +33,7 @@ function score_FEOL_2!(J::AbstractArray,b::AbstractArray,y,X)
     # Compute what the cut points are, from observing the dependent variable.
     cuts1 = sort(unique(y[:,1]))[2:end] #2:end: skip the first one
     cuts2 = sort(unique(y[:,2]))[2:end]
-    n_1 = length(cuts1) 
+    n_1 = length(cuts1) - 1 
     n_2 = length(cuts2)
     
     # Set the linear index.
@@ -53,14 +53,14 @@ function score_FEOL_2!(J::AbstractArray,b::AbstractArray,y,X)
             if i == 1
                 scalar_in = ((d1 + d2) .== 1).*(d2 .- logistic.(Xb - b[K+n_1+j]))
             else 
-                scalar_in = ((d1 + d2) .== 1).*(d2 .- logistic.(Xb + b[K+i] - b[K+n_1+j]))
+                scalar_in = ((d1 + d2) .== 1).*(d2 .- logistic.(Xb + b[K+i-1] - b[K+n_1+j]))
             end
             
-            Jnew[1:K] = [ mean( scalar_in .* X[:,i]) for i in 1:K]
+            Jnew[1:K] = [ mean( scalar_in .* X[:,k]) for k in 1:K]
             
             cut_H = mean(scalar_in)
             if i>1
-                Jnew[K+i] = cut_H
+                Jnew[K+i-1] = cut_H
             end
             Jnew[K+n_1+j] = -cut_H
 
@@ -81,7 +81,7 @@ function Hessian_FEOL_2!(H::AbstractArray,b::AbstractArray,y,X)
     # Compute what the cut points are, from observing the dependent variable.
     cuts1 = sort(unique(y[:,1]))[2:end] #2:end: skip the first one
     cuts2 = sort(unique(y[:,2]))[2:end]
-    n_1 = length(cuts1) # normalization: first cut point in first period at 0.
+    n_1 = length(cuts1) - 1 # normalization: first cut point in first period at 0.
     n_2 = length(cuts2)
     
     # Predefine the linear index.
@@ -101,25 +101,25 @@ function Hessian_FEOL_2!(H::AbstractArray,b::AbstractArray,y,X)
             
             # Compute the top-left block.
             if i == 1
-                Lambda = ((d1 + d2) .== 1).*(logistic.(Xb - b[K+n_1+j]))
+                Lambda = dbar.*(logistic.(Xb - b[K+n_1+j]))
             else 
-                Lambda = ((d1 + d2) .== 1).*(logistic.(Xb + b[K+i] - b[K+n_1+j]))
+                Lambda = dbar.*(logistic.(Xb + b[K+i-1] - b[K+n_1+j]))
             end
-            Hnew[1:K,1:K] = -(Lambda.*(1-Lambda) .* X)'*X / n
+            Hnew[1:K,1:K] = -(1/n)*(Lambda.*(1-Lambda) .* X)'*X
             
             # Compute the bottom-right block.
             cut_H = -mean(Lambda.*(1-Lambda))
             if i>1
-                Hnew[K+i,K+i] = cut_H
+                Hnew[K+i-1,K+i-1] = cut_H
             end
             Hnew[K+n_1+j,K+n_1+j] = cut_H
            
             # Compute the off-diagonal blocks.        
-            H_off = [ mean( -(Lambda.*(1-Lambda) .* X[:,i])) for i in 1:K ]
+            H_off = [ -mean( Lambda.*(1-Lambda) .* X[:,k]) for k in 1:K ]
             
             if i>1
-                Hnew[1:K,K+i] = H_off
-                Hnew[K+i,1:K] = H_off'
+                Hnew[1:K,K+i-1] = H_off
+                Hnew[K+i-1,1:K] = H_off'
             end
             Hnew[1:K,K+n_1+j] = -H_off
             Hnew[K+n_1+j,1:K] = -H_off'
@@ -273,7 +273,7 @@ are, in order, the maximum number of iterations,
 a stopping criterion for both the estimate and the score,
 and a parameter that controls how relaxed the NR algorithm is. 
 """
-function NewtonRaphson(objective!, gradient!, b0, y, X; maxiter = 1000, abstol = 1e-10, relax = 0.9)
+function NewtonRaphson(objective!, gradient!, b0, y, X; maxiter = 1000, abstol = 1e-10, relax = 0.3)
     
     # objective! is a function to set to zero (score-type) with first aargument being
     #      a replaceable array of length K, and the second being a value for the
