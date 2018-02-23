@@ -1,5 +1,3 @@
-using Plots
-
 export plot_h
 
 function plot_h(f::FELT)
