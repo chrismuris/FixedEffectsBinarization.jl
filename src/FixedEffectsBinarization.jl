@@ -23,17 +23,12 @@ The default solver is `LBFGS` (using `Optim.jl`). Set `solver=Newton()` to use N
 
 but in that case you must issue `using Optim` where you are issuing the estimation command.
 """
-function FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol;b0=false,solver = LBFGS(), verbose = true)
+function FixedEffectsOrderedLogit_2(y,X,cuts1,cuts2;b0=false,solver = LBFGS(), verbose = true)
     
-    # Convert the DataFrame + formula + (i,t)-indicators into vectors and matrices.
-    y,X = ConvertPanelToDiffCS_2(formula,data,isymbol,tsymbol)
-
     # set starting value.
     if b0 == false
         n,K = size(X)
         # Count how many additional columns there will be.
-        cuts1 = sort(unique(y[:,1]))[2:end] #2:end: skip the first one
-        cuts2 = sort(unique(y[:,2]))[2:end]
         n_1 = length(cuts1) - 1
         n_2 = length(cuts2)
         b_start = zeros(K+n_1+n_2)
@@ -44,7 +39,7 @@ function FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol;b0=false,solver
     end
     
     # Define the objective, gradient, and Hessian
-    objective, gradient!, Hessian! = fgh_FEOL_2(b_start,y,X)
+    objective, gradient!, Hessian! = fgh_FEOL_2(b_start,y,X,cuts1,cuts2)
     
     # Perform the optimization
     println("========================================")
@@ -91,13 +86,11 @@ end
 computes the (negative of the) log-likelihood, score, and 
 Hessian for the fixed effects ordered logit model.
 """
-function fgh_FEOL_2(theta::Array,y::Array,X::Array)
+function fgh_FEOL_2(theta::Array,y::Array,X::Array, cuts1, cuts2)
     
     # The data (y,X) comes in cross-sectionalized: n high, 2 cq K wide.
     # Settle some dimensions first.
     n, K = size(X) 
-    cuts1 = sort(unique(y[:,1]))[2:end] #2:end: skip the first one
-    cuts2 = sort(unique(y[:,2]))[2:end]
     n_1 = length(cuts1) - 1 
     n_2 = length(cuts2)
     
@@ -279,5 +272,7 @@ function ConvertPanelToDiffCS_2(formula,data,idsymbol,tsymbol)
     return [y1 y2], dX
     
 end
+
+include("datageneration.jl")
 
 end
