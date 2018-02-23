@@ -4,7 +4,7 @@ using StatsFuns.logistic
 using DataFrames: by, join, ModelMatrix, ModelFrame, model_response
 export NewtonRaphson, score_FEBClogit_2!, Hessian_FEBClogit_2!, ConvertPanelToDiffCS_2, FixedEffectsBinaryChoiceLogit_2, score_FEOL_2!, Hessian_FEOL_2!, FixedEffectsOrderedLogit_2
 
-function FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol; relax = 0.3, linesearch = false)
+function FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol; relax = 0.3, linesearch = false, b0 = false)
     
     # Convert the DataFrame + formula + (i,t)-indicators into vectors and matrices.
     y,X = ConvertPanelToDiffCS_2(formula,data,isymbol,tsymbol)
@@ -17,11 +17,16 @@ function FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol; relax = 0.3, l
     n_2 = length(cuts2)
     
     # Go for it!
+    if b0 == false
+        b_start = zeros(K+n_1+n_2)
+    else
+        b_start = b0
+    end
     
     if linesearch
-        b_hat = NRLS(score_FEOL_2!,Hessian_FEOL_2!,zeros(K+n_1+n_2),y,X)           
+        b_hat = NRLS(score_FEOL_2!,Hessian_FEOL_2!,b_start,y,X)           
     else
-        b_hat = NewtonRaphson(score_FEOL_2!,Hessian_FEOL_2!,zeros(K+n_1+n_2),y,X; relax = relax)
+        b_hat = NewtonRaphson(score_FEOL_2!,Hessian_FEOL_2!,b_start,y,X; relax = relax)
     end
 
     return b_hat
@@ -56,9 +61,9 @@ function score_FEOL_2!(J::AbstractArray,b::AbstractArray,y,X)
             dbar = (d1 + d2) .== 1
             
             if i == 1
-                scalar_in = ((d1 + d2) .== 1).*(d2 .- logistic.(Xb - b[K+n_1+j]))
+                scalar_in = dbar.*(d2 .- logistic.(Xb - b[K+n_1+j]))
             else 
-                scalar_in = ((d1 + d2) .== 1).*(d2 .- logistic.(Xb + b[K+i-1] - b[K+n_1+j]))
+                scalar_in = dbar.*(d2 .- logistic.(Xb + b[K+i-1] - b[K+n_1+j]))
             end
             
             Jnew[1:K] = [ mean( scalar_in .* X[:,k]) for k in 1:K]
@@ -327,7 +332,7 @@ are, in order, the maximum number of iterations,
 a stopping criterion for both the estimate and the score,
 and a parameter that controls how relaxed the NR algorithm is. 
 """
-function NewtonRaphson(objective!, gradient!, b0, y, X; maxiter = 1000, abstol = 1e-6, relax = 0.3)
+function NewtonRaphson(objective!, gradient!, b0, y, X; maxiter = 1000, abstol = 1e-8, relax = 0.3)
     
     # objective! is a function to set to zero (score-type) with first aargument being
     #      a replaceable array of length K, and the second being a value for the
@@ -349,8 +354,8 @@ function NewtonRaphson(objective!, gradient!, b0, y, X; maxiter = 1000, abstol =
         fn = objective!(fn,xn,y,X)
         Jn = gradient!(Jn,xn,y,X)
     
-        discrep = ((xnp1-xn)'*(xnp1-xn)) / length(xnp1) 
-        if discrep < abstol && abs(findmax(fn)[1])<abstol
+        discrep = max(findmax(abs.(xnp1-xn))[1],findmax(abs.(fn))[1])
+        if discrep < abstol
             break
         end
     
@@ -365,3 +370,43 @@ function NewtonRaphson(objective!, gradient!, b0, y, X; maxiter = 1000, abstol =
 end    
 
 end # module
+
+"""
+Implementation of gradient descent.
+
+"""
+function GradientDescent(objective!, b0, y, X; maxiter = 1000, abstol = 1e-8, stepsize = 0.5)
+    
+    # objective! is a function to set to zero (score-type) with first argument being
+    #      a replaceable array of length K, and the second being a value for the
+    #      parameter we are trying to estimate.
+    
+    K = length(b0)
+    
+    f0 = objective!(zeros(K),b0,y,X)
+    #J0 = gradient!(zeros(K,K),b0,y,X)
+    xn = b0
+    fn = f0
+    #Jn = J0
+    
+    for i in 1:maxiter
+
+        xnp1 = xn + stepsize*fn
+        fn = objective!(fn,xn,y,X)
+        #Jn = gradient!(Jn,xn,y,X)
+    
+        discrep = max(findmax(abs.(xnp1-xn))[1],findmax(abs.(fn))[1])
+
+        if discrep < abstol
+            break
+        end
+    
+        xn = xnp1
+        
+        if i == maxiter
+            println("Did not converge after $maxiter iterations.")
+        end
+    end
+    
+    return xn
+end
