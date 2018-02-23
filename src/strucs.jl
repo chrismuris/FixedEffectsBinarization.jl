@@ -15,7 +15,7 @@ mutable struct FELT
     discrete::Bool
 end
 
-function newFELT(formula,data,isymbol,tsymbol; discrete = true, levels = 5)
+function newFELT(formula,data,isymbol,tsymbol; discrete = true, levels = 10)
     
     # This only works for discrete!
     
@@ -31,8 +31,11 @@ function newFELT(formula,data,isymbol,tsymbol; discrete = true, levels = 5)
         # Standard number of levels is 5???
         q_points = collect(0:(1/(levels+1)):1)[2:(end-1)]
         
-        cuts1 = quantile(y[:,1], q_points)[:,1]
-        cuts2 = quantile(y[:,2], q_points)[:,1]
+        y1low = findmin(y[:,1])[1]
+        y2low = findmin(y[:,2])[1]
+
+        cuts1 = setdiff(quantile(y[:,1], q_points)[:,1],y1low)
+        cuts2 = setdiff(quantile(y[:,2], q_points)[:,1],y2low)
 
     end
 
