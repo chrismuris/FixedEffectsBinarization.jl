@@ -10,6 +10,7 @@ export FELT
 include("datageneration.jl")
 include("datahandling.jl")
 include("estimation.jl")
+include("postestimation.jl")
 
 # Each application is characterized by:
 # 1. (y,X) (well, formula, data, :i, : for the user)
@@ -44,11 +45,6 @@ function FELT(formula,data,isymbol,tsymbol; discrete = true, levels = 5)
         cuts1 = sort(unique(y[:,1]))[2:end] #2:end: skip the first one
         cuts2 = sort(unique(y[:,2]))[2:end]
         
-        print(cuts1)
-        print(cuts2)
-        
-        #error("Stop")
-
     else  #well then it must be continuous.
        
         # Standard number of levels is 5???
