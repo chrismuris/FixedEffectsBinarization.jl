@@ -2,7 +2,7 @@ module FixedEffectsBinarization
 
 using StatsFuns.logistic
 using DataFrames: by, join, ModelMatrix, ModelFrame, model_response, sort!
-using Optim
+using Optim: optimize, minimizer, LBFGS, NewtonTrustRegion
 
 export ConvertPanelToDiffCS_2, fgh_FEOL_2, FixedEffectsOrderedLogit_2
 
@@ -19,7 +19,9 @@ The default solver is `LBFGS` (using `Optim.jl`). Set `solver=Newton()` to use N
 - `NewtonTrustRegion`
 - `AcceleratedGradientDescent`
 - `NelderMead`
-- ... (see the documentation for `Optim.jl`).
+- ... (see the documentation for `Optim.jl`),
+
+but in that case you must issue `using Optim` where you are issuing the estimation command.
 """
 function FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol;b0=false,solver = LBFGS(), verbose = true)
     
@@ -45,14 +47,42 @@ function FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol;b0=false,solver
     objective, gradient!, Hessian! = fgh_FEOL_2(b_start,y,X)
     
     # Perform the optimization
-    optimization_results = optimize(objective, gradient!, b_start, solver)
+    println("========================================")
+    println("Starting the first minimization attempt.")
+    println("========================================")
+    opt_res = optimize(objective, gradient!, Hessian!, b_start, solver)
 
     # Report optimization diagnostics to user.
     if verbose
-        print(optimization_results)
+        print(opt_res)
     end
 
-    return Optim.minimizer(optimization_results)
+    if opt_res.g_converged
+        println("")
+        println("===============================")
+        println("Converged on the first attempt.")
+        println("===============================")
+        println("")
+    else
+        opt_res_1 = opt_res
+        println("")
+        println("")
+        println("====================================================")
+        println("Starting a second round, using Newton Trust Region..")
+        println("====================================================")
+        println("")
+        opt_res = optimize(objective, gradient!, b_start, NewtonTrustRegion())
+        if verbose
+            print(opt_res)
+        end
+        println("")
+        println("")
+        println("======================================================")
+        println("Further decrease of $(opt_res_1.minimum - opt_res.minimum).")
+        println("======================================================")
+    end
+
+    return opt_res.minimizer
 end
 
 """
