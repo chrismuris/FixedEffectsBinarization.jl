@@ -25,6 +25,8 @@ function plot_h(f::FELT)
     ymax = findmax(yvals)[1]
     #yticks!(yvals)
     ylims!(ymin-1,ymax+1)
-    plot!(legend=:topleft)
+    p = plot!(legend=:topleft)
+
+    return(p)
     
 end
