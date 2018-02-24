@@ -1,4 +1,4 @@
-export plot_h, plot_dist
+export plot_h, plot_dist, plot_dist_control
 
 function plot_h(f::FELT)
     
@@ -33,4 +33,14 @@ end
 
 function plot_dist(f::FELT)
     return histogram2d(f.y[:,1],f.y[:,2], bins = f.y1s)
+end
+
+function plot_h(f::NLDID)
+    plot_h(f.felt)
+    # Just redirect to the plot function for a FELT object.
+end
+
+function plot_dist_control(f::NLDID)
+    # Delegate to the function for FELT.
+    plot_dist(f.felt)
 end
