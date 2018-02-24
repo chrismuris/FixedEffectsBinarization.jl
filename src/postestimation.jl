@@ -1,4 +1,4 @@
-export plot_h, plot_dist, plot_dist_control, counterfactual_discrete
+export plot_h, plot_dist, plot_dist_control, counterfactual_discrete, plot_dist_treat
 
 function plot_h(f::FELT)
     

@@ -1,4 +1,4 @@
-export fgh_FEOL_2, FixedEffectsOrderedLogit_2
+export fgh_FEOL_2, FixedEffectsOrderedLogit_2, DiD!
 
 """
     FixedEffectsOrderedLogit_2(formula,data,isymbol,tsymbol; b0, solver)
