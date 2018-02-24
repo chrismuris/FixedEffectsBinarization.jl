@@ -101,6 +101,18 @@ function newNLDID(formula,data,isymbol,tsymbol,treatsymbol; ys = false, discrete
     MF = ModelFrame(formula,data_1)
     X_treat = ModelMatrix(MF).m[:,2:end]
     y_treat = model_response(MF)
-    
-    return NLDID(treatsymbol,f,t,y_treat,X_treat,"TBD","TBD")
+
+    if discrete
+        y0 = y_treat[t .== 0]
+        y1 = y_treat[t .== 1]
+        yLO = minimum(y1)
+        yHI = maximum(y1)
+        y1_cf = counterfactual_discrete(y0,yLO,yHI,
+                f.gamma_1_hat,f.y1s,f.gamma_2_hat,f.y2s)
+        nlATT = [mean(y1)-y1_cf[2], mean(y1)-y1_cf[1]]
+    else
+        nlATT = "TBD"
+    end
+
+    return NLDID(treatsymbol,f,t,y_treat,X_treat,"TBD",nlATT)
 end
