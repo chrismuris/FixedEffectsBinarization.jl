@@ -1,4 +1,4 @@
-export FELT, newFELT
+export FELT, newFELT, NLDID, newNLDID
 
 # Each application is characterized by:
 # 1. (y,X) (well, formula, data, :i, : for the user)
@@ -19,6 +19,24 @@ mutable struct FELT
     gamma_1_hat::Vector{Float64}
     gamma_2_hat::Vector{Float64}
     discrete::Bool
+end
+
+# Building on FELT, a nonlinear difference-in-differences structure 
+#   consists of:
+#     1. a FELT object, containing control outcomes and estimation results
+#     2. treatment indicator
+#     3. treatment data
+#     4. counterfactual outcomes.
+#     5. Linear DiD estimate
+
+mutable struct NLDID
+    treatsymbol::Symbol
+    felt::FELT
+    t::Vector{Float64}
+    y_treat::Vector{Float64}
+    X_treat::Array{Float64,2}
+    linearATT
+    nonlinearATT
 end
 
 function newFELT(formula,data,isymbol,tsymbol; ys = false, discrete = true, levels = 10)
@@ -67,4 +85,22 @@ function newFELT(formula,data,isymbol,tsymbol; ys = false, discrete = true, leve
                 b_hat,gamma_1_hat,gamma_2_hat,
                 discrete)
 
+end
+
+function newNLDID(formula,data,isymbol,tsymbol,treatsymbol; ys = false, discrete = true, levels = 10)
+    
+    # First split
+    data_0 = data[data[treatsymbol].==0,:]
+    data_1 = data[data[treatsymbol].==1,:]
+    
+    # Create the FELT instance
+    f = newFELT(formula,data_0,isymbol,tsymbol; ys = ys, discrete = discrete, levels = levels)
+    
+    # Extract the treat data.
+    t = Vector(data_1[tsymbol])
+    MF = ModelFrame(formula,data_1)
+    X_treat = ModelMatrix(MF).m[:,2:end]
+    y_treat = model_response(MF)
+    
+    return NLDID(treatsymbol,f,t,y_treat,X_treat,"TBD","TBD")
 end
