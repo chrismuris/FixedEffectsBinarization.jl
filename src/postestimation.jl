@@ -1,4 +1,4 @@
-export plot_h, plot_dist, plot_dist_control, counterfactual_discrete, plot_dist_treat
+export plot_h, plot_dist, plot_dist_control, plot_dist_treat
 
 function plot_h(f::FELT)
     
@@ -123,5 +123,43 @@ function counterfactual_discrete(Y0,YLOW,YHIGH,gamma_1,y1,gamma_2,y2)
     end
       
     return mean(ub_counterfactual), mean(lb_counterfactual)
+    
+end
+
+function counterfactual_continuous(Y0,gamma_1,y1,gamma_2,y2)
+   
+    # Y0 is a vector of observed values in period 1 for which we want to compute
+    #       counterfactuals in time 2.
+    #
+    # Should be passed in as 
+    #     Y0 = f.y_treat[f.t .== 0] 
+    # where f is a NLDID object.
+    
+    # y1 is the set of cut points used in period 1. These will exclude YLOW.
+    # gamma_1 is the estimated thresholds on the latent variable, e.g. y*>=gamma_1[2]
+    #    means y>=y1[2].
+    # 
+    # same for y2, gamma_2.
+    #
+    # 
+
+    # The counterfactual variable is h2(h1^{-1}(Y0)),
+    #   where we will replace those functions by their estimates.
+    # Because we estimate the functions at a bunch of points, we will use 
+    #   interpolation to obtain the values.
+    
+    h1inv = Spline1D(y1,gamma_1, k=1, bc="extrapolate")
+    h2 = Spline1D(gamma_2,y2,k=1,bc="extrapolate")
+    
+    Y1_cf = similar(Y0)*0.
+    n_treat = length(Y0)
+    
+    for i in 1:n_treat
+            
+        Y1_cf[i] = h2(h1inv(Y0[i]))
+        
+    end
+      
+    return mean(Y1_cf)
     
 end

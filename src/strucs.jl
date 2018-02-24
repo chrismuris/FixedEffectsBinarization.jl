@@ -47,29 +47,29 @@ function newFELT(formula,data,isymbol,tsymbol; ys = false, discrete = true, leve
     n,K = size(X)
     
     if ys !== false
-
+        
         cuts1 = ys
         cuts2 = ys
-
+        
     else
-
+        
         if discrete 
             cuts1 = sort(unique(y[:,1]))[2:end] #2:end: skip the first one
             cuts2 = sort(unique(y[:,2]))[2:end]
-        
+            
         else  #well then it must be continuous.
-       
+            
             # Compute `levels` equi-spaced quantiles.
             q_points = collect(0:(1/(levels+1)):1)[2:(end-1)]
-        
+            
             y1low = findmin(y[:,1])[1]
             y2low = findmin(y[:,2])[1]
-
+            
             cuts1 = setdiff(quantile(y[:,1], q_points)[:,1],y1low)
             cuts2 = setdiff(quantile(y[:,2], q_points)[:,1],y2low)
-
+            
         end
-
+        
     end
     # Need these for extracting b, gamma1, gamma2
     n_1 = length(cuts1) - 1
@@ -81,10 +81,10 @@ function newFELT(formula,data,isymbol,tsymbol; ys = false, discrete = true, leve
     gamma_2_hat = theta_hat[(K+n_1+1):(K+n_1+n_2)]
     
     return FELT(formula,data,isymbol,tsymbol,
-                y,X,cuts1,cuts2,
-                b_hat,gamma_1_hat,gamma_2_hat,
-                discrete)
-
+    y,X,cuts1,cuts2,
+    b_hat,gamma_1_hat,gamma_2_hat,
+    discrete)
+    
 end
 
 function newNLDID(formula,data,isymbol,tsymbol,treatsymbol; ys = false, discrete = true, levels = 10)
@@ -101,18 +101,22 @@ function newNLDID(formula,data,isymbol,tsymbol,treatsymbol; ys = false, discrete
     MF = ModelFrame(formula,data_1)
     X_treat = ModelMatrix(MF).m[:,2:end]
     y_treat = model_response(MF)
-
+    
+    y0 = y_treat[t .== 0]
+    y1 = y_treat[t .== 1]
+    
     if discrete
-        y0 = y_treat[t .== 0]
-        y1 = y_treat[t .== 1]
         yLO = minimum(y1)
         yHI = maximum(y1)
         y1_cf = counterfactual_discrete(y0,yLO,yHI,
-                f.gamma_1_hat,f.y1s,f.gamma_2_hat,f.y2s)
+                                        f.gamma_1_hat,f.y1s,
+                                        f.gamma_2_hat,f.y2s)
         nlATT = [mean(y1)-y1_cf[2], mean(y1)-y1_cf[1]]
     else
-        nlATT = "TBD"
+        
+        y1_cf = counterfactual_continuous(Y0,gamma_1,y1,gamma_2,y2)
+        nlATT = mean(y1) - y1_cf
     end
-
+    
     return NLDID(treatsymbol,f,t,y_treat,X_treat,"TBD",nlATT)
 end
