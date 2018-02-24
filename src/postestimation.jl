@@ -1,4 +1,4 @@
-export plot_h
+export plot_h, plot_dist
 
 function plot_h(f::FELT)
     
@@ -29,4 +29,8 @@ function plot_h(f::FELT)
 
     return(p)
     
+end
+
+function plot_dist(f::FELT)
+    return histogram2d(f.y[:,1],f.y[:,2], bins = f.y1s)
 end

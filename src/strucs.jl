@@ -21,30 +21,38 @@ mutable struct FELT
     discrete::Bool
 end
 
-function newFELT(formula,data,isymbol,tsymbol; discrete = true, levels = 10)
+function newFELT(formula,data,isymbol,tsymbol; ys = false, discrete = true, levels = 10)
     
     # This only works for discrete!
     
     y, X = ConvertPanelToDiffCS_2(formula,data,isymbol,tsymbol)
     n,K = size(X)
     
-    if discrete 
-        cuts1 = sort(unique(y[:,1]))[2:end] #2:end: skip the first one
-        cuts2 = sort(unique(y[:,2]))[2:end]
-        
-    else  #well then it must be continuous.
-       
-        # Standard number of levels is 5???
-        q_points = collect(0:(1/(levels+1)):1)[2:(end-1)]
-        
-        y1low = findmin(y[:,1])[1]
-        y2low = findmin(y[:,2])[1]
+    if ys !== false
 
-        cuts1 = setdiff(quantile(y[:,1], q_points)[:,1],y1low)
-        cuts2 = setdiff(quantile(y[:,2], q_points)[:,1],y2low)
+        cuts1 = ys
+        cuts2 = ys
+
+    else
+
+        if discrete 
+            cuts1 = sort(unique(y[:,1]))[2:end] #2:end: skip the first one
+            cuts2 = sort(unique(y[:,2]))[2:end]
+        
+        else  #well then it must be continuous.
+       
+            # Compute `levels` equi-spaced quantiles.
+            q_points = collect(0:(1/(levels+1)):1)[2:(end-1)]
+        
+            y1low = findmin(y[:,1])[1]
+            y2low = findmin(y[:,2])[1]
+
+            cuts1 = setdiff(quantile(y[:,1], q_points)[:,1],y1low)
+            cuts2 = setdiff(quantile(y[:,2], q_points)[:,1],y2low)
+
+        end
 
     end
-
     # Need these for extracting b, gamma1, gamma2
     n_1 = length(cuts1) - 1
     n_2 = length(cuts2)
