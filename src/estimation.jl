@@ -93,7 +93,7 @@ function fgh_FEOL_2(theta::Array,y::Array,X::Array, cuts1, cuts2)
     #
     
     # theta is a vector of coefficients. First K are beta. 
-    function min_ll(theta::Array)
+    function min_ll(theta::Array{Float64})
         
 #         println(cuts1)
 #         println(cuts2)
@@ -103,7 +103,7 @@ function fgh_FEOL_2(theta::Array,y::Array,X::Array, cuts1, cuts2)
         
         # Initialize
         Xb = X*theta[1:K]
-        ll = 0
+        ll = 0.
         
         for i in 1:(n_1+1)
             
@@ -132,7 +132,7 @@ function fgh_FEOL_2(theta::Array,y::Array,X::Array, cuts1, cuts2)
     function min_score!(J::Array,theta::Array)
 
        # Initialize the Jacobian to zero.
-        J[:] .= 0
+        J[:] .= 0.
         # Set the linear index.
         Xb = X*theta[1:K] 
 
@@ -153,7 +153,7 @@ function fgh_FEOL_2(theta::Array,y::Array,X::Array, cuts1, cuts2)
                     scalar_in = dbar.*(d2 .- logistic.(Xb .+ theta[K+i-1] .- theta[K+n_1+j]))
                 end
 
-                Jnew[1:K] = [ mean( scalar_in .* X[:,k]) for k in 1:K]
+                Jnew[1:K] = X'*scalar_in/n
 
                 cut_H = mean(scalar_in)
                 if i>1
@@ -170,7 +170,7 @@ function fgh_FEOL_2(theta::Array,y::Array,X::Array, cuts1, cuts2)
     function min_Hess!(H::Array,theta::AbstractArray)
         
         # Initialize the Jacobian to zero.
-        H[:] .= 0
+        H[:] .= 0.
 
         # Predefine the linear index.
         Xb = X*theta[1:K] 
