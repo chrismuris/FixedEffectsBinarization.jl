@@ -220,3 +220,15 @@ function fgh_FEOL_2(theta::Array,y::Array,X::Array, cuts1, cuts2)
     
     return min_ll, min_score!, min_Hess!
 end
+
+"""
+    DID!(f)
+
+computes the linear DiD estimate using a simple comparison of means.
+Should be updated to allow for covariates.
+"""
+function DiD!(f::NLDID)    
+    dif_treat = mean(f.y_treat[f.t.==1]) - mean(f.y_treat[f.t.==0])
+    dif_control = mean(f.felt.y[:,2]) - mean(f.felt.y[:,1])
+    f.linearATT = dif_treat - dif_control
+end

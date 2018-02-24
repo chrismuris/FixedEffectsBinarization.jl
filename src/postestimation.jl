@@ -44,3 +44,9 @@ function plot_dist_control(f::NLDID)
     # Delegate to the function for FELT.
     plot_dist(f.felt)
 end
+
+function plot_dist_treat(f::NLDID)
+    y1 = f.y_treat[f.t.==0]
+    y2 = f.y_treat[f.t.==1]
+    histogram2d(y1,y2, bins = f.felt.y1s)
+end
