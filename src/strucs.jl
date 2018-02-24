@@ -1,3 +1,5 @@
+using Dierckx
+
 export FELT, newFELT, NLDID, newNLDID
 
 # Each application is characterized by:
@@ -114,7 +116,7 @@ function newNLDID(formula,data,isymbol,tsymbol,treatsymbol; ys = false, discrete
         nlATT = [mean(y1)-y1_cf[2], mean(y1)-y1_cf[1]]
     else
         
-        y1_cf = counterfactual_continuous(Y0,gamma_1,y1,gamma_2,y2)
+        y1_cf = counterfactual_continuous(y0,f.gamma_1_hat,f.y1s,f.gamma_2_hat,f.y2s)
         nlATT = mean(y1) - y1_cf
     end
     

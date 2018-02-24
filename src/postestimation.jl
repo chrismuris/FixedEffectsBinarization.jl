@@ -147,9 +147,11 @@ function counterfactual_continuous(Y0,gamma_1,y1,gamma_2,y2)
     #   where we will replace those functions by their estimates.
     # Because we estimate the functions at a bunch of points, we will use 
     #   interpolation to obtain the values.
+
+    # @show [y1 gamma_1 y2 gamma_2]
     
-    h1inv = Spline1D(y1,gamma_1, k=1, bc="extrapolate")
-    h2 = Spline1D(gamma_2,y2,k=1,bc="extrapolate")
+    h1inv = Spline1D(y1,gamma_1, k=1,     bc="extrapolate")
+    h2 = Spline1D(   gamma_2,y2, k=1,     bc="extrapolate")
     
     Y1_cf = similar(Y0)*0.
     n_treat = length(Y0)
@@ -160,6 +162,8 @@ function counterfactual_continuous(Y0,gamma_1,y1,gamma_2,y2)
         
     end
       
+    # @show [Y0 Y1_cf]
+
     return mean(Y1_cf)
     
 end
