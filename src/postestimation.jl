@@ -11,8 +11,8 @@ function plot_h(f::FELT)
         plot(x1,y1-0.1, linetype = :steppost, linewidth = 5)
         plot!(x2,y2+0.1, linetype = :steppost, linewidth = 5)
     else
-        plot(x1,y1-0.1, linewidth = 5)
-        plot!(x2,y2+0.1, linewidth = 5)
+        plot(x1,y1, linewidth = 2)
+        plot!(x2,y2, linewidth = 2)
     end
     
     xmin = min(findmin(x1)[1],findmin(x2)[1])
