@@ -126,44 +126,32 @@ function counterfactual_discrete(Y0,YLOW,YHIGH,gamma_1,y1,gamma_2,y2)
     
 end
 
-function counterfactual_continuous(Y0,gamma_1,y1,gamma_2,y2)
-   
-    # Y0 is a vector of observed values in period 1 for which we want to compute
-    #       counterfactuals in time 2.
-    #
-    # Should be passed in as 
-    #     Y0 = f.y_treat[f.t .== 0] 
-    # where f is a NLDID object.
+# Write it up as a function
+function counterfactual_continuous(Yobs,Xobs,xto,beta,y_from,c_from,y_to,c_to,YLO,YHI)
     
-    # y1 is the set of cut points used in period 1. These will exclude YLOW.
-    # gamma_1 is the estimated thresholds on the latent variable, e.g. y*>=gamma_1[2]
-    #    means y>=y1[2].
-    # 
-    # same for y2, gamma_2.
-    #
-    # 
-
-    # The counterfactual variable is h2(h1^{-1}(Y0)),
-    #   where we will replace those functions by their estimates.
-    # Because we estimate the functions at a bunch of points, we will use 
-    #   interpolation to obtain the values.
-
-    # @show [y1 gamma_1 y2 gamma_2]
+    n,K = size(Xobs)
     
-    h1inv = Spline1D(y1,gamma_1, k=1,     bc="extrapolate")
-    h2 = Spline1D(   gamma_2,y2, k=1,     bc="extrapolate")
-    
-    Y1_cf = similar(Y0)*0.
-    n_treat = length(Y0)
-    
-    for i in 1:n_treat
-            
-        Y1_cf[i] = h2(h1inv(Y0[i]))
-        
+    if K>0 #deal with situations where no X is present.
+        dXb = (xto.-Xobs)*beta
+    else
+        dXb = 0
     end
-      
-    # @show [Y0 Y1_cf]
-
-    return mean(Y1_cf)
     
+    # The following interpolation objects will serve as functions.
+    # h1inv is an interpolation object that is the inverse of
+    #   the transformation function in the time period from which
+    #   Yobs originates.
+    h1inv = interpolate((y_from,),c_from, Gridded(Linear()))
+    # h2 is an interpolation object that allows you to go 
+    #   from latent variable to outcome in period "to", for which we're
+    #   constructing a counterfactual.
+    h2 = interpolate((c_to,),y_to, Gridded(Linear()))
+
+    # Map it!
+    Y_cf = h2[h1inv[Yobs] + dXb]
+    
+    # Stay in bounds, for example while censoring.
+    Y_cf[Y_cf .< YLO] = YLO
+    Y_cf[Y_cf .> YHI] = YHI
+    return Y_cf
 end
