@@ -1,4 +1,6 @@
-export plot_h, plot_dist, plot_dist_control, plot_dist_treat
+using Interpolations
+
+export plot_h, plot_dist, plot_dist_control, plot_dist_treat, counterfactual_discrete, counterfactual_continuous
 
 function plot_h(f::FELT)
     

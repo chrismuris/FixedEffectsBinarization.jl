@@ -1,5 +1,3 @@
-using Dierckx
-
 export FELT, newFELT, NLDID, newNLDID
 
 # Each application is characterized by:
@@ -106,6 +104,8 @@ function newNLDID(formula,data,isymbol,tsymbol,treatsymbol; ys = false, discrete
     
     y0 = y_treat[t .== 0]
     y1 = y_treat[t .== 1]
+    X0 = X_treat[t .== 0,:]
+    X1 = X_treat[t .== 1,:]
     
     if discrete
         yLO = minimum(y1)
@@ -116,8 +116,8 @@ function newNLDID(formula,data,isymbol,tsymbol,treatsymbol; ys = false, discrete
         nlATT = [mean(y1)-y1_cf[2], mean(y1)-y1_cf[1]]
     else
         
-        y1_cf = counterfactual_continuous(y0,f.gamma_1_hat,f.y1s,f.gamma_2_hat,f.y2s)
-        nlATT = mean(y1) - y1_cf
+        y1_cf = counterfactual_continuous(y0,X0,X1,f.b_hat,f.y1s,f.gamma_1_hat,f.y2s,f.gamma_2_hat,minimum(y_treat),maximum(y_treat))
+        nlATT = mean(y1) - mean(y1_cf)
     end
     
     return NLDID(treatsymbol,f,t,y_treat,X_treat,"TBD",nlATT)
